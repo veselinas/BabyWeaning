@@ -860,12 +860,192 @@ function handleImportAll(event) {
 function exportAll() {
   exportCSV('schedule');
   setTimeout(() => exportCSV('tracker'), 300);
-  setTimeout(() => exportCSV('recipes'), 600);
+  setTimeout(() => exportCSV('recipes'), // ===== ONEDRIVE / GRAPH API =====
+const MSAL_CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // <-- replace this
+const MSAL_AUTHORITY = 'https://login.microsoftonline.com/common';
+const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
+const ONEDRIVE_FOLDER = 'App_BabyWeaning';
+const FILE_NAMES = { schedule: 'weaning_schedule.csv', tracker: 'weaning_tracker.csv', recipes: 'weaning_recipes.csv' };
+
+let msalInstance = null;
+let graphToken = null;
+
+async function initMSAL() {
+  await loadScript('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js');
+  msalInstance = new msal.PublicClientApplication({
+    auth: { clientId: MSAL_CLIENT_ID, authority: MSAL_AUTHORITY, redirectUri: window.location.href.split('?')[0].split('#')[0] },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+  });
+  await msalInstance.initialize();
+  // Handle redirect response first
+  const resp = await msalInstance.handleRedirectPromise();
+  if (resp) graphToken = resp.accessToken;
+  // Check if already signed in
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0 || graphToken) {
+    if (!graphToken) graphToken = await acquireToken(accounts[0]);
+    setSignedIn(accounts[0]?.username || 'Signed in');
+  }
 }
 
-// ===== INIT =====  
-  
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) return res();
+    const s = document.createElement('script'); s.src = src;
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function acquireToken(account) {
+  try {
+    const result = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
+    return result.accessToken;
+  } catch {
+    // Silent failed — will need interactive
+    return null;
+  }
+}
+
+async function handleOneDriveBtn() {
+  if (graphToken) { signOut(); return; }
+  setStatus('Signing in…');
+  try {
+    // Try popup first, fall back to redirect (redirect works better on mobile)
+    let result;
+    try {
+      result = await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
+    } catch {
+      await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+      return; // page will reload
+    }
+    graphToken = result.accessToken;
+    setSignedIn(result.account.username);
+  } catch (e) {
+    setStatus('Sign-in failed');
+    console.error(e);
+  }
+}
+
+function setSignedIn(username) {
+  document.getElementById('onedrive-btn').textContent = 'Sign out';
+  document.getElementById('sync-btn').style.display = '';
+  setStatus(username.split('@')[0]);
+  syncAll();
+}
+
+function signOut() {
+  msalInstance.logoutRedirect();
+  graphToken = null;
+  document.getElementById('onedrive-btn').textContent = 'Sign in';
+  document.getElementById('sync-btn').style.display = 'none';
+  setStatus('');
+}
+
+function setStatus(msg) {
+  document.getElementById('sync-status').textContent = msg;
+}
+
+async function graphFetch(path, options = {}) {
+  const res = await fetch('https://graph.microsoft.com/v1.0' + path, {
+    ...options,
+    headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json', ...(options.headers || {}) }
+  });
+  if (res.status === 401) { setStatus('Session expired — sign in again'); graphToken = null; return null; }
+  return res;
+}
+
+async function ensureFolder() {
+  // Check if folder exists, create if not
+  const res = await graphFetch(`/me/drive/root:/${ONEDRIVE_FOLDER}`);
+  if (res && res.ok) return;
+  await graphFetch('/me/drive/root/children', {
+    method: 'POST',
+    body: JSON.stringify({ name: ONEDRIVE_FOLDER, folder: {}, '@microsoft.graph.conflictBehavior': 'rename' })
+  });
+}
+
+async function readFile(filename) {
+  const res = await graphFetch(`/me/drive/root:/${ONEDRIVE_FOLDER}/${filename}:/content`, { headers: {} });
+  if (!res || res.status === 404) return null;
+  if (!res.ok) return null;
+  return await res.text();
+}
+
+async function writeFile(filename, content) {
+  await graphFetch(`/me/drive/root:/${ONEDRIVE_FOLDER}/${filename}:/content`, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'text/csv' },
+    body: content
+  });
+}
+
+function buildCSV(type) {
+  let csv = '';
+  if (type === 'schedule') {
+    csv = 'date,meal1,meal2,meal3,snack1,snack2,rating_meal1,rating_meal2,rating_meal3,rating_snack1,rating_snack2\n';
+    Object.entries(scheduleDB).sort().forEach(([date, data]) => {
+      const row = [date];
+      MEALS.forEach(m => row.push('"' + (data[m] || []).join('|') + '"'));
+      MEALS.forEach(m => row.push(data['rating_' + m] || ''));
+      csv += row.join(',') + '\n';
+    });
+  } else if (type === 'tracker') {
+    csv = 'category,food,liked,neutral,disliked\n';
+    const allCats = { ...foodsDB, 'Meals': recipesDB.map(r => r.name) };
+    Object.entries(allCats).forEach(([cat, foods]) => {
+      foods.forEach(f => {
+        const c = trackerDB[f] || { liked: 0, neutral: 0, disliked: 0 };
+        csv += `"${cat}","${f}",${c.liked || 0},${c.neutral || 0},${c.disliked || 0}\n`;
+      });
+    });
+  } else if (type === 'recipes') {
+    csv = 'meal_name,ingredients,recipe\n';
+    recipesDB.forEach(r => {
+      const ings = (r.ingredients || []).map(i => `${i.name},${i.qty}`).join(';');
+      csv += `"${r.name}","${ings}","${(r.recipe || '').replace(/"/g, '""')}"\n`;
+    });
+  }
+  return csv;
+}
+
+async function syncAll() {
+  if (!graphToken) return;
+  setStatus('Syncing…');
+  document.getElementById('sync-btn').textContent = '⟳ …';
+  try {
+    await ensureFolder();
+    // Load all three files
+    const [schedText, trackText, recText] = await Promise.all([
+      readFile(FILE_NAMES.schedule),
+      readFile(FILE_NAMES.tracker),
+      readFile(FILE_NAMES.recipes)
+    ]);
+    if (schedText) { const e = {target:{files:[new File([schedText], FILE_NAMES.schedule)], value:''}}; handleImport(e, 'schedule'); }
+    if (trackText) { const e = {target:{files:[new File([trackText], FILE_NAMES.tracker)], value:''}}; handleImport(e, 'tracker'); }
+    if (recText)   { const e = {target:{files:[new File([recText],   FILE_NAMES.recipes)], value:''}}; handleImport(e, 'recipes'); }
+    // Write back current state (creates files if they didn't exist)
+    await Promise.all([
+      writeFile(FILE_NAMES.schedule, buildCSV('schedule')),
+      writeFile(FILE_NAMES.tracker,  buildCSV('tracker')),
+      writeFile(FILE_NAMES.recipes,  buildCSV('recipes'))
+    ]);
+    const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    setStatus('Synced ' + now);
+  } catch (e) {
+    setStatus('Sync failed');
+    console.error(e);
+  }
+  document.getElementById('sync-btn').textContent = '⟳ Sync';
+}
+
+// Auto-save to OneDrive after any data change
+const _origSave = save;
+save = function() { _origSave(); if (graphToken) syncAll(); };
+
 // ===== INIT =====
+initMSAL();
+ 
 renderSchedule();
 renderTracker();
 renderRecipes();
