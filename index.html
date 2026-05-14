@@ -182,9 +182,14 @@
 <header>
   <span class="leaf">🌿</span>
   <h1>Baby Weaning</h1>
+  <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+    <span id="sync-status" style="font-size:11px;color:var(--text3);"></span>
+    <button id="onedrive-btn" onclick="handleOneDriveBtn()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text2);cursor:pointer;white-space:nowrap;">Sign in</button>
+    <button id="sync-btn" onclick="syncAll()" style="font-size:12px;padding:6px 10px;background:var(--accent);border:none;border-radius:8px;color:white;cursor:pointer;display:none;white-space:nowrap;">⟳ Sync</button>
+  </div>
 </header>
 
-<!-- ============ SCHEDULE ============ -->
+<!-- ============SCHEDULE ============ -->
 <div class="section" id="sec-schedule">
   <div class="section-header" onclick="toggleSection('schedule')">
     <span class="section-title"><span class="icon">📅</span> Schedule</span>
