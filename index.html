@@ -864,7 +864,7 @@ let graphToken = null;
 async function initMSAL() {
   await loadScript('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js');
   msalInstance = new msal.PublicClientApplication({
-    auth: { clientId: MSAL_CLIENT_ID, authority: MSAL_AUTHORITY, redirectUri: window.location.href.split('?')[0].split('#')[0] },
+    auth: { clientId: MSAL_CLIENT_ID, authority: MSAL_AUTHORITY, redirectUri: 'https://veselinas.github.io/BabyWeaning/' },
     cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
   });
   await msalInstance.initialize();
@@ -902,18 +902,9 @@ async function handleOneDriveBtn() {
   if (graphToken) { signOut(); return; }
   setStatus('Signing in…');
   try {
-    // Try popup first, fall back to redirect (redirect works better on mobile)
-    let result;
-    try {
-      result = await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
-    } catch {
-      await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
-      return; // page will reload
-    }
-    graphToken = result.accessToken;
-    setSignedIn(result.account.username);
+    await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
   } catch (e) {
-    setStatus('Sign-in failed');
+    setStatus('Error: ' + e.message);
     console.error(e);
   }
 }
