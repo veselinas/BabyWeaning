@@ -842,6 +842,29 @@ function parseCSVLine(line) {
   return result;
 }
 
+function importAll() {
+  document.getElementById('import-all').click();
+}
+function handleImportAll(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(file => {
+    const name = file.name.toLowerCase();
+    let type = null;
+    if (name.includes('schedule')) type = 'schedule';
+    else if (name.includes('tracker')) type = 'tracker';
+    else if (name.includes('recipe')) type = 'recipes';
+    if (type) handleImport({target:{files:[file], value:''}}, type);
+  });
+  event.target.value = '';
+}
+function exportAll() {
+  exportCSV('schedule');
+  setTimeout(() => exportCSV('tracker'), 300);
+  setTimeout(() => exportCSV('recipes'), 600);
+}
+
+// ===== INIT =====  
+  
 // ===== INIT =====
 renderSchedule();
 renderTracker();
