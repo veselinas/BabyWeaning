@@ -1027,7 +1027,12 @@ const _origSave = save;
 save = function() { _origSave(); if (graphToken) syncAll(); };
 
 // ===== INIT =====
-initMSAL();
+initMSAL().catch(e => {
+  console.error('MSAL init failed:', e);
+  setStatus('Auth unavailable');
+  document.getElementById('onedrive-btn').textContent = 'Sign in';
+  document.getElementById('onedrive-btn').disabled = false;
+});
  
 renderSchedule();
 renderTracker();
