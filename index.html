@@ -53,7 +53,7 @@
   .leaf { font-size: 22px; }
 
   .section { border-bottom: 1px solid var(--border); }
-  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; user-select: none; background: var(--bg); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; user-select: none; background: var(--bg); position: sticky; top: 57px; z-index: 90; }
   .section-header:active { background: var(--bg2); }
   .section-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
   .section-title .icon { font-size: 18px; }
@@ -65,7 +65,7 @@
   /* ===== SCHEDULE ===== */
   .schedule-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .schedule-table { min-width: 100%; border-collapse: collapse; font-size: 12px; }
-  .schedule-table th { background: var(--bg2); color: var(--text2); font-weight: 500; padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; z-index: 10; }
+  .schedule-table th { background: var(--bg2); color: var(--text2); font-weight: 500; padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 114px; z-index: 10; }
   .schedule-table th.date-col { position: sticky; left: 0; z-index: 20; background: var(--bg2); min-width: 72px; }
   .schedule-table td { padding: 5px 4px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: center; min-width: 72px; }
   .schedule-table td.date-cell { position: sticky; left: 0; background: var(--bg); z-index: 5; font-size: 11px; color: var(--text2); font-weight: 500; padding: 6px 6px; white-space: nowrap; min-width: 72px; }
