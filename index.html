@@ -861,7 +861,8 @@ function exportAll() {
   exportCSV('schedule');
   setTimeout(() => exportCSV('tracker'), 300);
   setTimeout(() => exportCSV('recipes'), // ===== ONEDRIVE / GRAPH API =====
-const MSAL_CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // <-- replace this
+
+const MSAL_CLIENT_ID = '423ab17d-af12-49d2-9d7d-659dee2f4442'; // <-- replace this
 const MSAL_AUTHORITY = 'https://login.microsoftonline.com/common';
 const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
 const ONEDRIVE_FOLDER = 'App_BabyWeaning';
