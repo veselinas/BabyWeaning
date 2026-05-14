@@ -862,7 +862,7 @@ let msalInstance = null;
 let graphToken = null;
 
 async function initMSAL() {
-  await loadScript('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js');
+  await loadScript('https://unpkg.com/@azure/msal-browser@v5.x/lib/msal-browser.min.js');
   msalInstance = new msal.PublicClientApplication({
     auth: { clientId: MSAL_CLIENT_ID, authority: MSAL_AUTHORITY, redirectUri: 'https://veselinas.github.io/BabyWeaning/' },
     cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
