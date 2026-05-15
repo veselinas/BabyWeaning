@@ -521,49 +521,44 @@ function confirmRating() {
   if (!scheduleDB[dateKey]) scheduleDB[dateKey] = {};
   const old = scheduleDB[dateKey]['rating_'+meal];
   scheduleDB[dateKey]['rating_'+meal] = tempRating;
-  // Update tracker
+
   const foods = scheduleDB[dateKey][meal] || [];
-  const ratingKey = RATING_MAP[tempRating];
-  // Remove old rating count if changing
-  if (old && old !== tempRating) {
+
+  // Collect all affected food names (direct foods + recipe ingredients)
+  function expandFoods(foodList) {
+    const all = [];
+    foodList.forEach(f => {
+      all.push(f);
+      const recipe = recipesDB.find(r => r.name === f);
+      if (recipe) recipe.ingredients.forEach(ing => { if (ing.name) all.push(ing.name); });
+    });
+    return all;
+  }
+
+  const allFoods = expandFoods(foods);
+
+  // Remove old rating
+  if (old) {
     const oldKey = RATING_MAP[old];
-    foods.forEach(f => {
+    allFoods.forEach(f => {
       if (!trackerDB[f]) trackerDB[f] = {liked:0,neutral:0,disliked:0};
       if (trackerDB[f][oldKey] > 0) trackerDB[f][oldKey]--;
     });
-    // also handle meals: if meal is a recipe, get its ingredients
-    foods.forEach(f => {
-      const recipe = recipesDB.find(r => r.name === f);
-      if (recipe) {
-        recipe.ingredients.forEach(ing => {
-          if (!trackerDB[ing.name]) trackerDB[ing.name] = {liked:0,neutral:0,disliked:0};
-          if (trackerDB[ing.name][oldKey] > 0) trackerDB[ing.name][oldKey]--;
-        });
-      }
-    });
   }
-  // Add new rating if not already same
-  if (!old || old !== tempRating) {
-    foods.forEach(f => {
-      if (!trackerDB[f]) trackerDB[f] = {liked:0,neutral:0,disliked:0};
-      trackerDB[f][ratingKey] = (trackerDB[f][ratingKey]||0) + 1;
-    });
-    foods.forEach(f => {
-      const recipe = recipesDB.find(r => r.name === f);
-      if (recipe) {
-        recipe.ingredients.forEach(ing => {
-          if (!trackerDB[ing.name]) trackerDB[ing.name] = {liked:0,neutral:0,disliked:0};
-          trackerDB[ing.name][ratingKey] = (trackerDB[ing.name][ratingKey]||0) + 1;
-        });
-      }
-    });
-  }
+
+  // Add new rating
+  const ratingKey = RATING_MAP[tempRating];
+  allFoods.forEach(f => {
+    if (!trackerDB[f]) trackerDB[f] = {liked:0,neutral:0,disliked:0};
+    trackerDB[f][ratingKey] = (trackerDB[f][ratingKey]||0) + 1;
+  });
+
   save();
   closeRatingModal();
   renderSchedule();
   renderTracker();
 }
-
+  
 // ===== TRACKER =====
 function getCatIcon(cat) {
   const icons = {'Vegetables':'🥦','Fruits':'🍓','Meats':'🥩','Allergens':'⚠️','Grains & Pulses':'🌾','Fats, spices, etc.':'🫒','Meals':'🍽️'};
