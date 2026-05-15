@@ -1023,9 +1023,7 @@ async function syncAll() {
   document.getElementById('sync-btn').textContent = '⟳ Sync';
 }
 
-// Auto-save to OneDrive after any data change
-const _origSave = save;
-save = function() { _origSave(); if (graphToken) syncAll(); };
+
 
 // ===== INIT =====
 initMSAL().catch(e => {
